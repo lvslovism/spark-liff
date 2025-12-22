@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spark - Good Friend Invite</title>
+  <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 24px;
+      padding: 40px 30px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .logo { font-size: 48px; margin-bottom: 10px; }
+    .title { font-size: 24px; font-weight: bold; color: #1F2937; margin-bottom: 8px; }
+    .subtitle { font-size: 14px; color: #6B7280; margin-bottom: 30px; }
+    .reward-box {
+      background: linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%);
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .reward-row { display: flex; align-items: center; justify-content: space-around; }
+    .reward-item { text-align: center; }
+    .reward-label { font-size: 12px; color: #92400E; margin-bottom: 4px; }
+    .reward-points { font-size: 28px; font-weight: bold; color: #D97706; }
+    .reward-emoji { font-size: 32px; }
+    .referrer-box {
+      background: #F3F4F6;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 24px;
+    }
+    .referrer-label { font-size: 12px; color: #6B7280; margin-bottom: 4px; }
+    .referrer-code { font-size: 20px; font-weight: bold; color: #1F2937; letter-spacing: 2px; }
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn-primary {
+      background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+      color: white;
+      box-shadow: 0 4px 14px rgba(16, 185, 129, 0.4);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 20px rgba(16, 185, 129, 0.5); }
+    .status { margin-top: 20px; padding: 12px; border-radius: 8px; font-size: 14px; }
+    .status.loading { background: #EBF5FF; color: #1E40AF; }
+    .status.success { background: #D1FAE5; color: #065F46; }
+    .status.error { background: #FEE2E2; color: #991B1B; }
+    .hidden { display: none; }
+    .features { margin-top: 24px; text-align: left; }
+    .feature-item { display: flex; align-items: center; padding: 8px 0; font-size: 14px; color: #4B5563; }
+    .feature-icon { margin-right: 10px; font-size: 18px; }
+    .note { margin-top: 20px; font-size: 12px; color: #9CA3AF; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">&#x2728;</div>
+    <h1 class="title">Spark &#38728;&#24863;&#23531;&#25163;</h1>
+    <p class="subtitle">AI &#24171;&#20320;&#23531;&#20986;&#21560;&#30555;&#31038;&#32676;&#25991;&#26696;</p>
+    
+    <div class="reward-box">
+      <div class="reward-row">
+        <div class="reward-item">
+          <div class="reward-label">&#20320;&#29554;&#24471;</div>
+          <div class="reward-points">50</div>
+        </div>
+        <div class="reward-emoji">&#129309;</div>
+        <div class="reward-item">
+          <div class="reward-label">&#26379;&#21451;&#29554;&#24471;</div>
+          <div class="reward-points">50</div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="referrer-box" id="referrerBox">
+      <div class="referrer-label">&#26379;&#21451;&#30340;&#36992;&#35531;&#30908;</div>
+      <div class="referrer-code" id="referralCode">SPARK-XXXXXX</div>
+    </div>
+    
+    <button class="btn btn-primary" id="startBtn" onclick="handleStart()">
+      &#128640; &#21152;&#20837;&#38936;&#21462;&#29518;&#21237;
+    </button>
+    
+    <div class="status hidden" id="status"></div>
+    
+    <div class="features">
+      <div class="feature-item">
+        <span class="feature-icon">&#128248;</span>
+        <span>&#20659;&#29031;&#29255;&#65292;30&#31186;&#29983;&#25104;&#25991;&#26696;</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#127912;</span>
+        <span>&#22810;&#31278;&#39080;&#26684;&#65292;&#31526;&#21512;&#20320;&#30340;&#21697;&#29260;</span>
+      </div>
+      <div class="feature-item">
+        <span class="feature-icon">&#128241;</span>
+        <span>&#19968;&#37749;&#30332;&#24067;&#21040; IG / FB</span>
+      </div>
+    </div>
+    
+    <p class="note">&#23436;&#25104; 3 &#31687;&#25991;&#26696;&#24460;&#65292;&#38617;&#26041;&#37117;&#33021;&#29554;&#24471; 50 &#40670;&#29518;&#21237;&#65281;</p>
+  </div>
+
+  <script>
+    const CONFIG = {
+      LIFF_ID: '2008053214-77W1AfvL',
+      SUPABASE_URL: 'https://uqkmzztmvckhorihedse.supabase.co',
+      SUPABASE_ANON_KEY: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVxa216enRtdmNraG9yaWhlZHNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjMxMDUxNTgsImV4cCI6MjA3ODY4MTE1OH0.JxiAsIihbjcLznFmL0bdCcgQfOQj0bFsPZ5vzUJIMks',
+      BOT_ID: '@010ndcrh'
+    };
+    
+    let referralCode = null;
+    let userProfile = null;
+    
+    async function initializeLiff() {
+      try {
+        await liff.init({ liffId: CONFIG.LIFF_ID });
+        console.log('LIFF initialized');
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        referralCode = urlParams.get('ref') || urlParams.get('code');
+        
+        if (referralCode) {
+          document.getElementById('referralCode').textContent = referralCode.toUpperCase();
+        } else {
+          document.getElementById('referrerBox').style.display = 'none';
+        }
+        
+        if (liff.isLoggedIn()) {
+          userProfile = await liff.getProfile();
+          console.log('User profile:', userProfile);
+        }
+        
+      } catch (error) {
+        console.error('LIFF init error:', error);
+        showStatus('Init failed, please refresh', 'error');
+      }
+    }
+    
+    async function handleStart() {
+      const btn = document.getElementById('startBtn');
+      btn.disabled = true;
+      btn.textContent = 'Processing...';
+      
+      try {
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+        
+        if (!userProfile) {
+          userProfile = await liff.getProfile();
+        }
+        
+        showStatus('Processing...', 'loading');
+        
+        if (referralCode) {
+          await savePrebind(userProfile.userId, referralCode);
+        }
+        
+        const friendship = await liff.getFriendship();
+        
+        if (friendship.friendFlag) {
+          showStatus('\u2705 You are already a Spark friend! Code recorded, go back to chat.', 'success');
+          btn.textContent = '\uD83C\uDF89 Done';
+          
+          setTimeout(() => {
+            liff.closeWindow();
+          }, 3000);
+        } else {
+          showStatus('\u2705 Code recorded! Redirecting...', 'success');
+          
+          setTimeout(() => {
+            const addFriendUrl = 'https://line.me/R/ti/p/' + CONFIG.BOT_ID;
+            
+            if (liff.isInClient()) {
+              window.location.href = addFriendUrl;
+            } else {
+              window.open(addFriendUrl, '_blank');
+              btn.textContent = '\u2705 Please add friend';
+            }
+          }, 1500);
+        }
+        
+      } catch (error) {
+        console.error('Error:', error);
+        showStatus('Error: ' + error.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '\uD83D\uDE80 Retry';
+      }
+    }
+    
+    async function savePrebind(lineUserId, refCode) {
+      try {
+        const referrerResponse = await fetch(
+          CONFIG.SUPABASE_URL + '/rest/v1/spark_users?referral_code=eq.' + refCode + '&select=id',
+          {
+            headers: {
+              'apikey': CONFIG.SUPABASE_ANON_KEY,
+              'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY
+            }
+          }
+        );
+        
+        const referrerData = await referrerResponse.json();
+        const referrerUserId = referrerData[0] ? referrerData[0].id : null;
+        
+        const response = await fetch(
+          CONFIG.SUPABASE_URL + '/rest/v1/spark_referral_prebinds',
+          {
+            method: 'POST',
+            headers: {
+              'apikey': CONFIG.SUPABASE_ANON_KEY,
+              'Authorization': 'Bearer ' + CONFIG.SUPABASE_ANON_KEY,
+              'Content-Type': 'application/json',
+              'Prefer': 'resolution=merge-duplicates'
+            },
+            body: JSON.stringify({
+              line_user_id: lineUserId,
+              referral_code: refCode.toUpperCase(),
+              referrer_user_id: referrerUserId,
+              status: 'pending',
+              expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            })
+          }
+        );
+        
+        if (!response.ok) {
+          throw new Error('Save failed');
+        }
+        
+        console.log('Prebind saved successfully');
+        return true;
+        
+      } catch (error) {
+        console.error('Save prebind error:', error);
+        return false;
+      }
+    }
+    
+    function showStatus(message, type) {
+      const status = document.getElementById('status');
+      status.textContent = message;
+      status.className = 'status ' + type;
+      status.classList.remove('hidden');
+    }
+    
+    document.addEventListener('DOMContentLoaded', initializeLiff);
+  </script>
+</body>
+</html>
