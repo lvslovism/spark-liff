@@ -1,0 +1,309 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spark 推薦連結</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 30px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    }
+    .logo { font-size: 48px; margin-bottom: 20px; }
+    .title { font-size: 24px; font-weight: bold; color: #333; margin-bottom: 10px; }
+    .subtitle { color: #666; margin-bottom: 30px; line-height: 1.6; }
+    .status { padding: 20px; border-radius: 12px; margin-bottom: 20px; }
+    .status.loading { background: #f0f0f0; }
+    .status.success { background: #d4edda; color: #155724; }
+    .status.error { background: #f8d7da; color: #721c24; }
+    .status-icon { font-size: 36px; margin-bottom: 10px; }
+    .status-text { font-size: 16px; line-height: 1.5; }
+    .referrer-name { font-weight: bold; color: #667eea; }
+    .note { 
+      font-size: 13px; 
+      color: #888; 
+      margin-top: 15px; 
+      padding: 10px;
+      background: #f9f9f9;
+      border-radius: 8px;
+    }
+    .btn {
+      display: inline-block;
+      padding: 14px 32px;
+      border-radius: 30px;
+      text-decoration: none;
+      font-weight: bold;
+      font-size: 16px;
+      transition: transform 0.2s, box-shadow 0.2s;
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(0,0,0,0.2); }
+    .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+    .btn-secondary { background: #f0f0f0; color: #333; }
+    .countdown { font-size: 14px; color: #999; margin-top: 15px; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">✨</div>
+    <div class="title">Spark AI</div>
+    <div class="subtitle">30 秒寫好社群文案<br>讓 AI 幫你說出心裡話</div>
+    
+    <div id="status" class="status loading">
+      <div class="spinner"></div>
+      <div class="status-text">正在處理...</div>
+    </div>
+    
+    <div id="actions"></div>
+    <div id="note" class="note hidden"></div>
+    <div id="countdown" class="countdown hidden"></div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    // ============================================
+    // 🔧 配置區（部署時更新）
+    // ============================================
+    const CONFIG = {
+      LIFF_ID: '2008053214-77W1AfvL',
+      // ⚠️ 部署時更新為實際的 Webhook URL
+      PREBIND_API: 'https://hotten.app.n8n.cloud/webhook/referral-prebind',
+      LINE_ADD_FRIEND_URL: 'https://lin.ee/sPuEW6B',
+      AUTO_REDIRECT_DELAY: 3000
+    };
+
+    // ============================================
+    // DOM 元素
+    // ============================================
+    const statusEl = document.getElementById('status');
+    const actionsEl = document.getElementById('actions');
+    const noteEl = document.getElementById('note');
+    const countdownEl = document.getElementById('countdown');
+
+    // ============================================
+    // 工具函數
+    // ============================================
+    function setStatus(icon, text, type) {
+      statusEl.className = `status ${type}`;
+      statusEl.innerHTML = `
+        <div class="status-icon">${icon}</div>
+        <div class="status-text">${text}</div>
+      `;
+    }
+
+    function setActions(buttons) {
+      actionsEl.innerHTML = buttons.map(btn => 
+        `<button class="btn ${btn.class}" onclick="${btn.action}">${btn.label}</button>`
+      ).join('');
+    }
+
+    function setNote(text) {
+      if (text) {
+        noteEl.textContent = text;
+        noteEl.classList.remove('hidden');
+      } else {
+        noteEl.classList.add('hidden');
+      }
+    }
+
+    function startCountdown(seconds, callback) {
+      countdownEl.classList.remove('hidden');
+      let remaining = seconds;
+      countdownEl.textContent = `${remaining} 秒後自動跳轉...`;
+      
+      const timer = setInterval(() => {
+        remaining--;
+        if (remaining <= 0) {
+          clearInterval(timer);
+          callback();
+        } else {
+          countdownEl.textContent = `${remaining} 秒後自動跳轉...`;
+        }
+      }, 1000);
+    }
+
+    // ============================================
+    // 錯誤處理
+    // ============================================
+    function handleError(errorCode, message) {
+      const errorConfig = {
+        'INVALID_LINE_USER_ID': {
+          icon: '❌', 
+          text: '無法取得用戶資訊',
+          buttons: [{ label: '重試', class: 'btn-primary', action: 'location.reload()' }]
+        },
+        'INVALID_REFERRAL_CODE': {
+          icon: '❌', 
+          text: '推薦碼格式不正確',
+          buttons: [{ label: '直接加入 Spark', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }]
+        },
+        'REFERRER_NOT_FOUND': {
+          icon: '❌', 
+          text: '找不到這個推薦碼',
+          buttons: [{ label: '直接加入 Spark', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }]
+        },
+        'SELF_REFERRAL': {
+          icon: '🙅', 
+          text: '不能使用自己的推薦碼喔',
+          buttons: [{ label: '返回', class: 'btn-primary', action: 'liff.closeWindow()' }]
+        },
+        'ALREADY_HAS_REFERRER': {
+          icon: '✅', 
+          text: '你已經綁定過推薦碼囉！',
+          buttons: [{ label: '開始使用 Spark', class: 'btn-primary', action: 'liff.closeWindow()' }]
+        }
+      };
+
+      const config = errorConfig[errorCode] || {
+        icon: '❌',
+        text: message || '發生錯誤，請稍後再試',
+        buttons: [
+          { label: '重試', class: 'btn-secondary', action: 'location.reload()' },
+          { label: '直接加入', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }
+        ]
+      };
+
+      setStatus(config.icon, config.text, 'error');
+      setActions(config.buttons);
+    }
+
+    // ============================================
+    // 主程式
+    // ============================================
+    async function main() {
+      try {
+        // 1. 取得 URL 參數
+        const urlParams = new URLSearchParams(window.location.search);
+        const referralCode = urlParams.get('ref');
+        
+        if (!referralCode) {
+          setStatus('❓', '缺少推薦碼', 'error');
+          setActions([
+            { label: '直接加入 Spark', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }
+          ]);
+          return;
+        }
+
+        // 2. 初始化 LIFF
+        setStatus('⏳', '正在連接 LINE...', 'loading');
+        await liff.init({ liffId: CONFIG.LIFF_ID });
+
+        // 3. 檢查登入狀態
+        if (!liff.isLoggedIn()) {
+          setStatus('🔐', '需要登入 LINE', 'loading');
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+
+        // 4. 取得用戶資料
+        const profile = await liff.getProfile();
+        const lineUserId = profile.userId;
+
+        // 5. 檢查網路連線
+        if (!navigator.onLine) {
+          setStatus('📡', '網路連線中斷，請檢查網路', 'error');
+          setActions([
+            { label: '重試', class: 'btn-primary', action: 'location.reload()' }
+          ]);
+          return;
+        }
+
+        // 6. 呼叫 Prebind API
+        setStatus('⏳', '正在處理推薦碼...', 'loading');
+        
+        const response = await fetch(CONFIG.PREBIND_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            lineUserId: lineUserId,
+            referralCode: referralCode
+          })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const result = await response.json();
+
+        // 7. 處理結果
+        if (result.success) {
+          const referrerName = result.data?.referrerName || '好友';
+          
+          // 檢查是否已是好友
+          let isFriend = false;
+          try {
+            const friendship = await liff.getFriendship();
+            isFriend = friendship.friendFlag;
+          } catch (e) {
+            console.log('無法取得好友狀態，預設為非好友');
+          }
+          
+          if (isFriend) {
+            // 已是好友 → 顯示成功，可關閉 LIFF
+            setStatus('✅', `已記錄 <span class="referrer-name">${referrerName}</span> 的推薦！`, 'success');
+            setNote('💡 生成第一篇文案後，推薦正式生效喔！');
+            setActions([
+              { label: '開始使用 Spark', class: 'btn-primary', action: 'liff.closeWindow()' }
+            ]);
+          } else {
+            // 還不是好友 → 引導加好友
+            setStatus('✅', `已記錄 <span class="referrer-name">${referrerName}</span> 的推薦！`, 'success');
+            setNote('💡 加入好友 → 生成第一篇文案 → 推薦正式生效！');
+            setActions([
+              { label: '加入 Spark 好友', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }
+            ]);
+            startCountdown(CONFIG.AUTO_REDIRECT_DELAY / 1000, () => {
+              location.href = CONFIG.LINE_ADD_FRIEND_URL;
+            });
+          }
+        } else {
+          // 處理錯誤
+          handleError(result.error, result.message);
+        }
+
+      } catch (error) {
+        console.error('LIFF Error:', error);
+        setStatus('❌', '系統錯誤，請稍後再試', 'error');
+        setActions([
+          { label: '重試', class: 'btn-secondary', action: 'location.reload()' },
+          { label: '直接加入', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }
+        ]);
+      }
+    }
+
+    // ============================================
+    // 啟動
+    // ============================================
+    main();
+  </script>
+</body>
+</html>
