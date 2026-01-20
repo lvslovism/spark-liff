@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spark 推薦連結</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #4A90C4 0%, #F5A623 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 20px;
+      padding: 40px 30px;
+      max-width: 400px;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      text-align: center;
+    }
+    .logo { font-size: 64px; margin-bottom: 20px; }
+    .title { font-size: 28px; font-weight: bold; color: #333; margin-bottom: 10px; }
+    .subtitle { font-size: 14px; color: #666; margin-bottom: 30px; }
+    
+    /* Status Box */
+    .status-box {
+      background: #F8F9FA;
+      border-radius: 12px;
+      padding: 24px;
+      margin: 20px 0;
+    }
+    .status-icon { font-size: 48px; margin-bottom: 12px; }
+    .status-text { font-size: 16px; color: #333; font-weight: 500; }
+    .status-hint { font-size: 12px; color: #666; margin-top: 8px; }
+    
+    /* Loading Animation */
+    .loading { display: inline-block; width: 20px; height: 20px; }
+    .loading:after {
+      content: " ";
+      display: block;
+      width: 16px;
+      height: 16px;
+      margin: 2px;
+      border-radius: 50%;
+      border: 2px solid #4A90C4;
+      border-color: #4A90C4 transparent #4A90C4 transparent;
+      animation: loading 1.2s linear infinite;
+    }
+    @keyframes loading {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Buttons */
+    .btn {
+      display: block;
+      width: 100%;
+      padding: 16px;
+      border: none;
+      border-radius: 12px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 12px;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #4A90C4, #357ABD);
+      color: white;
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(74, 144, 196, 0.4);
+    }
+    .btn-secondary {
+      background: #F0F0F0;
+      color: #333;
+    }
+    .btn-secondary:hover {
+      background: #E0E0E0;
+    }
+    
+    /* Success/Error States */
+    .success { background: #E8F5E9; }
+    .error { background: #FFEBEE; }
+    .success .status-text { color: #2E7D32; }
+    .error .status-text { color: #C62828; }
+    
+    /* Hide class */
+    .hidden { display: none; }
+  </style>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">✨</div>
+    <div class="title">Spark AI</div>
+    <div class="subtitle">30 秒寫好社群文案<br>讓 AI 幫你說出心裡話</div>
+    
+    <!-- Status Box -->
+    <div id="statusBox" class="status-box">
+      <div class="status-icon">⏳</div>
+      <div class="status-text">正在處理推薦碼...</div>
+    </div>
+    
+    <!-- Action Buttons -->
+    <div id="actions" class="hidden"></div>
+  </div>
+
+  <script>
+    // ============================================================
+    // CONFIG
+    // ============================================================
+    const CONFIG = {
+      LIFF_ID: '2008053214-77W1AfvL',
+      PREBIND_API: 'https://astrapath.app.n8n.cloud/webhook/referral-prebind',
+      LINE_ADD_FRIEND_URL: 'https://lin.ee/sPuEW6B',
+      AUTO_REDIRECT_DELAY: 3000
+    };
+
+    // ============================================================
+    // DOM Elements
+    // ============================================================
+    const statusBox = document.getElementById('statusBox');
+    const actionsDiv = document.getElementById('actions');
+
+    // ============================================================
+    // UI Helper Functions
+    // ============================================================
+    function setStatus(icon, text, hint = '', type = '') {
+      statusBox.className = `status-box ${type}`;
+      statusBox.innerHTML = `
+        <div class="status-icon">${icon}</div>
+        <div class="status-text">${text}</div>
+        ${hint ? `<div class="status-hint">${hint}</div>` : ''}
+      `;
+    }
+
+    function setActions(buttons) {
+      actionsDiv.className = '';
+      actionsDiv.innerHTML = buttons.map(btn => `
+        <button 
+          class="btn ${btn.class}" 
+          onclick="${btn.action}"
+        >${btn.label}</button>
+      `).join('');
+    }
+
+    // ============================================================
+    // Main Function
+    // ============================================================
+    async function main() {
+      // 取得推薦碼
+      const ref = new URLSearchParams(location.search).get('ref');
+      
+      // 沒有推薦碼 → 直接跳轉
+      if (!ref) {
+        location.href = CONFIG.LINE_ADD_FRIEND_URL;
+        return;
+      }
+
+      try {
+        // 初始化 LIFF
+        await liff.init({ liffId: CONFIG.LIFF_ID });
+        
+        // 未登入 → 導向登入
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: location.href });
+          return;
+        }
+
+        // 取得用戶資料
+        const profile = await liff.getProfile();
+        const lineUserId = profile.userId;
+
+        // 呼叫 Prebind API
+        const response = await fetch(CONFIG.PREBIND_API, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ lineUserId, referralCode: ref })
+        });
+
+        const result = await response.json();
+
+        // 處理回應
+        if (result.success) {
+          // 成功
+          const referrerName = result.data?.referrerName || '好友';
+          setStatus('✅', `已記錄 ${referrerName} 的推薦！`, '現在加入好友開始使用', 'success');
+          setActions([
+            { 
+              label: '加入好友開始使用', 
+              class: 'btn-primary', 
+              action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` 
+            }
+          ]);
+        } else {
+          // 失敗 - 顯示錯誤
+          handleError(result.error || 'UNKNOWN_ERROR', result.message);
+        }
+
+      } catch (error) {
+        console.error('LIFF Error:', error);
+        setStatus('❌', '系統錯誤，請稍後再試', '', 'error');
+        setActions([
+          { label: '重試', class: 'btn-secondary', action: 'location.reload()' },
+          { label: '直接加入', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }
+        ]);
+      }
+    }
+
+    // ============================================================
+    // Error Handler
+    // ============================================================
+    function handleError(errorCode, message) {
+      const errorConfig = {
+        'INVALID_LINE_USER_ID': {
+          icon: '❌', 
+          text: '無法取得用戶資訊',
+          buttons: [{ label: '重試', class: 'btn-primary', action: 'location.reload()' }]
+        },
+        'INVALID_REFERRAL_CODE': {
+          icon: '❌', 
+          text: '推薦碼格式不正確',
+          buttons: [{ label: '直接加入', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }]
+        },
+        'REFERRER_NOT_FOUND': {
+          icon: '❌', 
+          text: '找不到這個推薦碼',
+          buttons: [{ label: '直接加入', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }]
+        },
+        'SELF_REFERRAL': {
+          icon: '🙅', 
+          text: '不能使用自己的推薦碼喔',
+          buttons: [{ label: '返回', class: 'btn-primary', action: 'liff.closeWindow()' }]
+        },
+        'ALREADY_HAS_REFERRER': {
+          icon: '✅', 
+          text: '你已經綁定過推薦碼囉！',
+          buttons: [{ label: '開始使用', class: 'btn-primary', action: 'liff.closeWindow()' }]
+        }
+      };
+
+      const config = errorConfig[errorCode] || {
+        icon: '❌',
+        text: message || '發生錯誤，請稍後再試',
+        buttons: [
+          { label: '重試', class: 'btn-secondary', action: 'location.reload()' },
+          { label: '直接加入', class: 'btn-primary', action: `location.href='${CONFIG.LINE_ADD_FRIEND_URL}'` }
+        ]
+      };
+
+      setStatus(config.icon, config.text, '', 'error');
+      setActions(config.buttons);
+    }
+
+    // ============================================================
+    // Start
+    // ============================================================
+    main();
+  </script>
+</body>
+</html>
